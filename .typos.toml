@@ -1,0 +1,11 @@
+[default.extend-words]
+ABL = "ABL"
+abl = "abl"
+
+[default]
+extend-ignore-re = [
+    ".*– Ausführliche Befehls-.*",
+]
+
+[files]
+extend-exclude = ["CHANGELOG.md", "docs/*_DE.md"]
