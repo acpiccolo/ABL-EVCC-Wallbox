@@ -47,6 +47,7 @@ For more detailed information, please refer to the official documentation and re
 - [`Schnittstellenbeschreibung_Modbus-ASCII.pdf`](./docs/Schnittstellenbeschreibung_Modbus-ASCII.pdf) – Official ABL EVCC2/3 Modbus ASCII interface specification.
 - [`ABL_eMH1_Command_and_Value_Reference_DE.md`](./docs/ABL_eMH1_Command_and_Value_Reference_DE.md) – Ausführliche Befehls-, Werte- und Register-Referenz (Deutsch) mit Glossar (CP, CS, PWM, Duty Cycle, RDC-MD, etc.).
 - [`ABL_eMH1_Command_and_Value_Reference_EN.md`](./docs/ABL_eMH1_Command_and_Value_Reference_EN.md) – Comprehensive Command, Value, and Register Reference (English) with glossary and technical field definitions.
+- **ABL CONFCAB Software** – Official configuration software for configuring EEPROM parameters and internal settings, available at [https://wallbox.com/ablmobility/downloads](https://wallbox.com/ablmobility/downloads).
 
 ---
 
@@ -73,6 +74,10 @@ For more detailed information, please refer to the official documentation and re
 | **`0x0006`** | Read System Flags | Read (2 words) | State machine pointer, contactor feedback, upstream communication status, load imbalance, and overtemperature indicators. |
 | **`0x0014`** | Set Maximum Current / Duty Cycle | Write (1 word) | Duty cycle in 0.1% steps (`Amperes / 0.06`). `1000` (`0x03E8`) = disabled / charging prohibited. |
 | **`0x002E`** | Full Status & Phase Currents | Read (5 words) | Status byte, EV connection flag, configured current, and 3-phase currents in 0.1A resolution (`I_L1`, `I_L2`, `I_L3`). |
+
+> [!NOTE]
+> **EEPROM Commands / Configuration:**
+> EEPROM commands are deliberately not implemented in this library and CLI tool because they are not officially documented. To configure EEPROM parameters and internal settings, please use the official ABL configuration software **CONFCAB**, which can be downloaded from [https://wallbox.com/ablmobility/downloads](https://wallbox.com/ablmobility/downloads).
 
 ---
 
@@ -149,8 +154,6 @@ Configurable options:
   - Example: `11,000 W` $\rightarrow$ `16 A` per phase
   - Example: `22,000 W` $\rightarrow$ `32 A` per phase
   - Example: `0 W` $\rightarrow$ `0 A` (charging stopped)
-
-Translated with DeepL.com (free version)
 
 ---
 
