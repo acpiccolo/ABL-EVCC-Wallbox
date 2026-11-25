@@ -8,7 +8,7 @@ struct TestMqttConfig {
     #[serde(default = "default_allow_control")]
     pub allow_control: bool,
     #[serde(default = "default_max_current")]
-    pub max_current: u16,
+    pub max_current: f32,
 }
 
 fn default_topic() -> String {
@@ -19,8 +19,8 @@ fn default_allow_control() -> bool {
     false
 }
 
-fn default_max_current() -> u16 {
-    1
+fn default_max_current() -> f32 {
+    1.0
 }
 
 #[cfg(all(test, feature = "bin-dependencies"))]
@@ -36,7 +36,7 @@ uri: "tcp://localhost:1883"
         assert_eq!(config.uri, "tcp://localhost:1883");
         assert_eq!(config.topic, "abl-evcc");
         assert!(!config.allow_control);
-        assert_eq!(config.max_current, 1);
+        assert_eq!(config.max_current, 1.0);
     }
 
     #[test]
@@ -45,12 +45,12 @@ uri: "tcp://localhost:1883"
 uri: "tcp://192.168.1.50:1883"
 topic: "custom/wallbox"
 allow_control: true
-max_current: 16
+max_current: 16.5
 "#;
         let config: TestMqttConfig = yaml_serde::from_str(yaml).unwrap();
         assert_eq!(config.uri, "tcp://192.168.1.50:1883");
         assert_eq!(config.topic, "custom/wallbox");
         assert!(config.allow_control);
-        assert_eq!(config.max_current, 16);
+        assert_eq!(config.max_current, 16.5);
     }
 }

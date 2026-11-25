@@ -147,13 +147,13 @@ Configurable options:
 ### Ampere vs. Watt Definition
 
 - **Ampere (`set-current`) per phase:**
-  The wallbox uses the Control-Pilot PWM signal to indicate the maximum current per phase (6A to 80A, or 0A to stop).
+  The wallbox uses the Control-Pilot PWM signal to indicate the maximum current per phase (6.0A to 80.0A, or 0.0A to stop). Supports sub-ampere decimal resolution (e.g. `7.5` or `6.4`) mapped to 0.1% duty cycle steps (~0.06A theoretical resolution).
 - **Watts (`set-power`) applies to 3 phases:**
   For a 3-phase power supply ($3 \times 230\,\text{V} = 690\,\text{V}$), the wattage is automatically converted to the corresponding current per phase:
-  $$\text{Amperes per phase} = \text{round}\left(\frac{\text{power in watts}}{3 \times 230\,\text{V}}\right)$$
-  - Example: `11,000 W` $\rightarrow$ `16 A` per phase
-  - Example: `22,000 W` $\rightarrow$ `32 A` per phase
-  - Example: `0 W` $\rightarrow$ `0 A` (charging stopped)
+  $$\text{Amperes per phase} = \frac{\text{power in watts}}{3 \times 230\,\text{V}}$$
+  - Example: `11,000 W` $\rightarrow$ `15.94 A` per phase (effective power $\approx 11,000\,\text{W}$)
+  - Example: `22,000 W` $\rightarrow$ `31.88 A` per phase (effective power $\approx 22,000\,\text{W}$)
+  - Example: `0 W` $\rightarrow$ `0.0 A` (charging stopped)
 
 ---
 
@@ -182,8 +182,8 @@ abl-evcc tcp 192.168.3.128:8899 read-current
 
 #### Set Charging Current in Amperes per Phase (`set-current`)
 ```sh
-# Set limit to 16 Amperes per phase:
-abl-evcc tcp 192.168.3.128:8899 set-current 16
+# Set limit to 16 Amperes per phase (or decimal value like 7.5):
+abl-evcc tcp 192.168.3.128:8899 set-current 7.5
 
 # Stop / halt charging (0 Amperes, prompts for confirmation unless -f / --force is given):
 abl-evcc tcp 192.168.3.128:8899 set-current 0 --force
@@ -191,7 +191,7 @@ abl-evcc tcp 192.168.3.128:8899 set-current 0 --force
 
 #### Set Charging Power in Watts for 3 Phases (`set-power`)
 ```sh
-# Set limit to 11000 Watts (3-phase, converts to 16A per phase):
+# Set limit to 11000 Watts (3-phase, converts to 15.94A per phase):
 abl-evcc tcp 192.168.3.128:8899 set-power 11000
 
 # Stop / halt charging (0 Watts, prompts for confirmation unless -f / --force is given):
@@ -265,7 +265,7 @@ You can also run the tool as a daemon that periodically polls the wallbox and pu
 - `<topic>/status_code`: Hex code (`0x00A1`, `0x00B1`, `0x00C2`, etc.)
 - `<topic>/status_description`: Human-readable status description
 - `<topic>/ev_connected`: Boolean (`true`/`false`)
-- `<topic>/configured_current`: Configured charging current in Amperes per phase
+- `<topic>/configured_current`: Configured charging current in Amperes per phase (Float, e.g. `16.0` or `7.5`)
 - `<topic>/enabled`: Boolean indicating if charging is active (`true` if current >= 6A)
 - `<topic>/current_l1`: Phase 1 current in Amperes
 - `<topic>/current_l2`: Phase 2 current in Amperes
@@ -275,8 +275,8 @@ You can also run the tool as a daemon that periodically polls the wallbox and pu
 
 #### Bidirectional Control via MQTT:
 When `allow_control: true` is configured in `mqtt.yaml` (default: `false`), the daemon subscribes to `<topic>/set/#` and allows remote control:
-- `<topic>/set/current`: Sets maximum current in Amperes per phase (e.g. `16` or `0` to stop). Capped by `max_current`.
-- `<topic>/set/power`: Sets 3-phase power in Watts (e.g. `11000` or `0` to stop). Capped by `max_current`.
+- `<topic>/set/current`: Sets maximum current in Amperes per phase (Float, e.g. `16`, `7.5`, or `0` to stop). Capped by `max_current`.
+- `<topic>/set/power`: Sets 3-phase power in Watts (e.g. `11000` or `0` to stop). Converted directly to `f32` Amperes and capped by `max_current`.
 - `<topic>/set/enable`: Boolean (`true` / `on` to enable at `max_current`, `false` / `off` to disable).
 - `<topic>/set/wake_up`: Set to `true` / `1` to trigger vehicle wake-up sequence.
 - `<topic>/set/reset`: Set to `true` / `1` to restart the EVCC2 charge controller.
@@ -313,7 +313,7 @@ The YAML file allows you to set the following parameters:
 - `auto_reconnect_interval_min` (Duration, Optional): Minimum automatic reconnect backoff interval (e.g., `"1s"`).
 - `auto_reconnect_interval_max` (Duration, Optional): Maximum automatic reconnect backoff interval (e.g., `"30s"`).
 - `allow_control` (Boolean, Optional): Enables remote control via MQTT (`<topic>/set/#`). Defaults to `false`.
-- `max_current` (Integer, Optional): Maximum current cap in Amperes per phase allowed via MQTT. Defaults to `1` (1A safety limit).
+- `max_current` (Float, Optional): Maximum current cap in Amperes per phase allowed via MQTT (supports decimal values like `16.5`). Defaults to `1.0` (1A safety limit).
 
 **Example `mqtt.yaml`:**
 

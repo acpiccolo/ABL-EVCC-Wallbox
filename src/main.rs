@@ -147,7 +147,7 @@ fn handle_commands(
             }
         }
         commandline::Commands::SetCurrent { amperes, force } => {
-            if *amperes == 0 && !force {
+            if *amperes == 0.0 && !force {
                 eprintln!("Warning: Setting charging current to 0A will immediately halt active charging.");
                 eprintln!("Pass --force to skip confirmation. Continue? [y/N]");
                 let mut input = String::new();
@@ -159,16 +159,20 @@ fn handle_commands(
             }
             client
                 .set_current(*amperes)
-                .with_context(|| format!("Cannot set charging current to {amperes}A"))?;
-            if *amperes == 0 {
+                .with_context(|| format!("Cannot set charging current to {amperes:.1}A"))?;
+            if *amperes == 0.0 {
                 println!("Charging current disabled / stopped (0A).");
             } else {
-                println!("Charging current successfully set to: {}A per phase (Total 3-phase power: {}W)", amperes, (*amperes as u32) * 3 * 230);
+                let effective_power = (*amperes * 3.0 * 230.0).round() as u32;
+                println!(
+                    "Charging current successfully set to: {:.1}A per phase (Total 3-phase power: {}W)",
+                    amperes, effective_power
+                );
             }
         }
         commandline::Commands::SetPower { watts, force } => {
             let amps = proto::power_watts_to_amperes(*watts);
-            if amps == 0 && !force {
+            if amps == 0.0 && !force {
                 eprintln!(
                     "Warning: Setting charging power to 0W will immediately halt active charging."
                 );
@@ -182,13 +186,14 @@ fn handle_commands(
             }
             client
                 .set_current(amps)
-                .with_context(|| format!("Cannot set charging power to {watts}W ({amps}A)"))?;
-            if amps == 0 {
+                .with_context(|| format!("Cannot set charging power to {watts}W ({amps:.1}A)"))?;
+            if amps == 0.0 {
                 println!("Charging power disabled / stopped (0W / 0A).");
             } else {
+                let effective_power = (amps * 3.0 * 230.0).round() as u32;
                 println!(
-                    "Charging power {}W (3-phase) successfully converted and set to: {}A per phase (effective power: {}W).",
-                    watts, amps, (amps as u32) * 3 * 230
+                    "Charging power {}W (3-phase) successfully converted and set to: {:.1}A per phase (effective power: {}W).",
+                    watts, amps, effective_power
                 );
             }
         }
@@ -264,7 +269,7 @@ fn handle_commands(
             let amps = if let Some(p) = power {
                 let converted = proto::power_watts_to_amperes(*p);
                 println!(
-                    "Converted power {}W (3-phase) to {}A per phase.",
+                    "Converted power {}W (3-phase) to {:.1}A per phase.",
                     p, converted
                 );
                 converted
@@ -273,8 +278,8 @@ fn handle_commands(
             };
             client
                 .enable(Some(amps))
-                .with_context(|| format!("Cannot enable charging at {amps}A"))?;
-            println!("Charging successfully enabled at {}A per phase.", amps);
+                .with_context(|| format!("Cannot enable charging at {amps:.1}A"))?;
+            println!("Charging successfully enabled at {:.1}A per phase.", amps);
         }
         commandline::Commands::Disable { force } => {
             if !force {

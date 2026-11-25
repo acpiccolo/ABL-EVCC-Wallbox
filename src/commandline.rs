@@ -20,9 +20,9 @@ pub fn parse_address(s: &str) -> Result<u8, String> {
     }
 }
 
-pub fn parse_current(s: &str) -> Result<u16, String> {
-    let val = s.parse::<u16>().map_err(|e| format!("{e}"))?;
-    if val == 0 || (6..=80).contains(&val) {
+pub fn parse_current(s: &str) -> Result<f32, String> {
+    let val = s.parse::<f32>().map_err(|e| format!("{e}"))?;
+    if val == 0.0 || (6.0..=80.0).contains(&val) {
         Ok(val)
     } else {
         Err(format!(
@@ -140,7 +140,7 @@ pub enum Commands {
     SetCurrent {
         /// Current in Amperes per phase (0 to disable/stop, or 6 to 80)
         #[arg(value_parser = parse_current)]
-        amperes: u16,
+        amperes: f32,
 
         /// Skip confirmation when setting 0A (stopping charging)
         #[arg(short, long)]
@@ -167,7 +167,7 @@ pub enum Commands {
     Enable {
         /// Charging current in Amperes per phase (default: 16A)
         #[arg(default_value = "16", value_parser = parse_current)]
-        amperes: u16,
+        amperes: f32,
 
         /// Optional total 3-phase charging power in Watts (overrides amperes if specified)
         #[arg(long)]
@@ -224,4 +224,28 @@ pub struct Args {
     /// Delay between retry operations
     #[arg(value_parser = parse_duration, long, default_value = "100ms")]
     pub delay: Duration,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_current() {
+        assert_eq!(parse_current("0").unwrap(), 0.0);
+        assert_eq!(parse_current("0.0").unwrap(), 0.0);
+        assert_eq!(parse_current("6").unwrap(), 6.0);
+        assert_eq!(parse_current("6.0").unwrap(), 6.0);
+        assert_eq!(parse_current("6.4").unwrap(), 6.4);
+        assert_eq!(parse_current("7.5").unwrap(), 7.5);
+        assert_eq!(parse_current("16").unwrap(), 16.0);
+        assert_eq!(parse_current("16.5").unwrap(), 16.5);
+        assert_eq!(parse_current("80").unwrap(), 80.0);
+        assert_eq!(parse_current("80.0").unwrap(), 80.0);
+
+        assert!(parse_current("5.9").is_err());
+        assert!(parse_current("80.1").is_err());
+        assert!(parse_current("-1").is_err());
+        assert!(parse_current("invalid").is_err());
+    }
 }

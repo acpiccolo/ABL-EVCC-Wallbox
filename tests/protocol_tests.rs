@@ -114,25 +114,30 @@ mod tests {
 
     #[test]
     fn test_amperes_to_evcc2_duty_cycle() {
-        assert_eq!(amperes_to_evcc2_duty_cycle(0), 1000);
-        assert_eq!(amperes_to_evcc2_duty_cycle(6), 100);
-        assert_eq!(amperes_to_evcc2_duty_cycle(16), 267);
-        assert_eq!(amperes_to_evcc2_duty_cycle(32), 533);
+        assert_eq!(amperes_to_evcc2_duty_cycle(0.0), 1000);
+        assert_eq!(amperes_to_evcc2_duty_cycle(5.9), 1000);
+        assert_eq!(amperes_to_evcc2_duty_cycle(6.0), 100);
+        assert_eq!(amperes_to_evcc2_duty_cycle(6.4), 107);
+        assert_eq!(amperes_to_evcc2_duty_cycle(7.5), 125);
+        assert_eq!(amperes_to_evcc2_duty_cycle(16.0), 267);
+        assert_eq!(amperes_to_evcc2_duty_cycle(32.0), 533);
     }
 
     #[test]
     fn test_power_watts_to_amperes() {
-        // 0 Watts -> 0A
-        assert_eq!(power_watts_to_amperes(0), 0);
+        // 0 Watts -> 0.0A
+        assert_eq!(power_watts_to_amperes(0), 0.0);
 
-        // 11kW (3x230V): 11000 / 690 = 15.94 -> 16A
-        assert_eq!(power_watts_to_amperes(11000), 16);
+        // 11kW (3x230V): 11000 / 690 = 15.942...A
+        let amps_11k = power_watts_to_amperes(11000);
+        assert!((amps_11k - 15.942).abs() < 0.01);
 
-        // 22kW (3x230V): 22000 / 690 = 31.88 -> 32A
-        assert_eq!(power_watts_to_amperes(22000), 32);
+        // 22kW (3x230V): 22000 / 690 = 31.884...A
+        let amps_22k = power_watts_to_amperes(22000);
+        assert!((amps_22k - 31.884).abs() < 0.01);
 
-        // Low power clamped to minimum 6A (e.g. 2000W / 690 = 2.9A -> 6A)
-        assert_eq!(power_watts_to_amperes(2000), 6);
+        // Low power clamped to minimum 6.0A (e.g. 2000W / 690 = 2.9A -> 6.0A)
+        assert_eq!(power_watts_to_amperes(2000), 6.0);
     }
 
     #[test]

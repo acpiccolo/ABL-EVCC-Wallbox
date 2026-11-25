@@ -4,7 +4,7 @@
 //! supporting both direct TCP connections and asynchronous serial ports (`tokio_serial::SerialStream`).
 
 use crate::protocol::{
-    amperes_to_evcc2_duty_cycle, decode_ascii_frame, encode_ascii_frame, evcc2_registers,
+    amperes_to_evcc2_duty_cycle, decode_ascii_frame, encode_ascii_frame, evcc2_registers, power_watts_to_amperes,
     Evcc2Firmware, Evcc2Measurements, Evcc2ModbusSettings, Evcc2Status, Evcc2SystemFlags,
 };
 use anyhow::{bail, Context, Result};
@@ -324,22 +324,28 @@ impl AsyncAsciiClient {
         Evcc2Measurements::decode(&bytes).with_context(|| "Failed to parse EVCC2 measurement data")
     }
 
-    /// Set charging current limit asynchronously.
-    pub async fn set_current(&mut self, amperes: u16) -> Result<()> {
+    /// Set charging current limit asynchronously in Amperes per phase (6.0..=80.0A or 0.0 to stop/disable).
+    pub async fn set_current(&mut self, amperes: f32) -> Result<()> {
         let duty = amperes_to_evcc2_duty_cycle(amperes);
         self.write_multiple_registers(evcc2_registers::REG_AMPS_CONFIG, &[duty])
             .await
     }
 
-    /// Enable charging asynchronously.
-    pub async fn enable(&mut self, amperes: Option<u16>) -> Result<()> {
-        let amps = amperes.unwrap_or(16);
+    /// Set charging power asynchronously in Watts total for 3 phases (converts to Amperes at 3x230V).
+    pub async fn set_power(&mut self, watts: u32) -> Result<()> {
+        let amps = power_watts_to_amperes(watts);
+        self.set_current(amps).await
+    }
+
+    /// Enable charging asynchronously (resumes charging at specified Amperes, or 16.0A default).
+    pub async fn enable(&mut self, amperes: Option<f32>) -> Result<()> {
+        let amps = amperes.unwrap_or(16.0);
         self.set_current(amps).await
     }
 
     /// Disable charging asynchronously.
     pub async fn disable(&mut self) -> Result<()> {
-        self.set_current(0).await
+        self.set_current(0.0).await
     }
 
     /// Wake up vehicle asynchronously via Control Pilot sequence (E0 -> wait 3s -> A1).

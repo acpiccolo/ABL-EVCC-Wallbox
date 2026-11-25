@@ -78,12 +78,12 @@ The ABL eMH1 reports its exact operating position via the status byte in registe
 ## 3. Calculation Principles: Current vs. Power
 
 - **Amperes (`set-current`) is always the current per phase:**
-  Allowable range: `0` (halt / stop charging) or `6` to `80` Amperes.
+  Allowable range: `0` (halt / stop charging) or `6.0` to `80.0` Amperes. Decimal values with sub-ampere resolution (e.g. `7.5` or `6.4`) are supported via PWM duty cycle (0.1% steps, corresponding to ~0.06A theoretical resolution).
 - **Watts (`set-power`) is always the total power across 3 phases (at $3 \times 230\,\text{V}$):**
-  $$\text{Current per phase (A)} = \text{round}\left(\frac{\text{Power (W)}}{3 \times 230\,\text{V}}\right)$$
-  - `11000 W` $\rightarrow$ $11000 / 690 = 15.94 \approx \mathbf{16\,\text{A}}$ per phase ($11,040\,\text{W}$)
-  - `22000 W` $\rightarrow$ $22000 / 690 = 31.88 \approx \mathbf{32\,\text{A}}$ per phase ($22,080\,\text{W}$)
-  - `0 W` $\rightarrow$ $\mathbf{0\,\text{A}}$ (charging stopped)
+  $$\text{Current per phase (A)} = \frac{\text{Power (W)}}{3 \times 230\,\text{V}}$$
+  - `11000 W` $\rightarrow$ $11000 / 690 = 15.94\,\text{A}$ per phase (effective power $\approx 11000\,\text{W}$)
+  - `22000 W` $\rightarrow$ $22000 / 690 = 31.88\,\text{A}$ per phase (effective power $\approx 22000\,\text{W}$)
+  - `0 W` $\rightarrow$ $\mathbf{0.0\,\text{A}}$ (charging stopped)
 
 ---
 
@@ -135,7 +135,7 @@ Reads the current limit setting from register `0x0014`.
 Sets the charging current limit per phase in register `0x0014`.
 
 - **Arguments:**
-  - `<AMPERES>`: Integer (`0` or `6`..`80`). Current in Amperes per phase.
+  - `<AMPERES>`: Float (`0` or `6.0`..`80.0`). Current in Amperes per phase (e.g. `16` or `7.5`).
   - `-f, --force`: Bypasses confirmation prompt when setting `0A`.
 - **Output:**
   ```text
@@ -289,7 +289,7 @@ Reads serial communications parameters from register `0x0003`.
 Enables charging and writes current limit to register `0x0014`.
 
 - **Options:**
-  - `[AMPERES]`: Current in Amperes per phase (default: `16`).
+  - `[AMPERES]`: Current in Amperes per phase (default: `16`, supports decimal values like `6.4`).
   - `--power <WATTS>`: Total 3-phase power in Watts (e.g. `11000`), converted to Amperes per phase.
 
 ---

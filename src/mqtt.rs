@@ -19,9 +19,9 @@ pub struct MqttConfig {
     /// Allow controlling the wallbox via MQTT subscriptions (default: false)
     #[serde(default = "MqttConfig::default_allow_control")]
     pub allow_control: bool,
-    /// Maximum charging current allowed via MQTT in Amperes per phase (default: 1A)
+    /// Maximum charging current allowed via MQTT in Amperes per phase (default: 1.0A)
     #[serde(default = "MqttConfig::default_max_current")]
-    pub max_current: u16,
+    pub max_current: f32,
     #[serde(default = "MqttConfig::default_client_id")]
     pub client_id: String,
     #[serde(
@@ -82,8 +82,8 @@ impl MqttConfig {
         false
     }
 
-    fn default_max_current() -> u16 {
-        1
+    fn default_max_current() -> f32 {
+        1.0
     }
 
     fn generate_random_string(len: usize) -> String {
@@ -143,7 +143,7 @@ impl MqttConfig {
             }
         }
         if let Ok(env_max) = std::env::var("MQTT_MAX_CURRENT") {
-            if let Ok(val) = env_max.parse::<u16>() {
+            if let Ok(val) = env_max.parse::<f32>() {
                 config.max_current = val;
             }
         }
@@ -220,7 +220,7 @@ pub struct MqttPublisher {
     topic: String,
     qos: i32,
     allow_control: bool,
-    max_current: u16,
+    max_current: f32,
     consumer: Option<paho_mqtt::SyncReceiver<Option<paho_mqtt::Message>>>,
     was_disconnected: AtomicBool,
 }
@@ -277,37 +277,37 @@ impl MqttPublisher {
             if let Some(cmd) = topic.strip_prefix(&prefix) {
                 match cmd {
                     "current" => {
-                        if let Ok(mut amps) = payload.trim().parse::<u16>() {
-                            if amps > 0 && amps > self.max_current {
+                        if let Ok(mut amps) = payload.trim().parse::<f32>() {
+                            if amps > 0.0 && amps > self.max_current {
                                 log::warn!(
-                                    "Requested current {}A per phase exceeds configured MQTT max_current limit ({}A per phase). Capping to {}A.",
+                                    "Requested current {:.1}A per phase exceeds configured MQTT max_current limit ({:.1}A per phase). Capping to {:.1}A.",
                                     amps, self.max_current, self.max_current
                                 );
                                 amps = self.max_current;
                             }
-                            if amps == 0 || (6..=80).contains(&amps) {
-                                log::info!("Applying MQTT current setting: {}A per phase", amps);
+                            if amps == 0.0 || (6.0..=80.0).contains(&amps) {
+                                log::info!("Applying MQTT current setting: {:.1}A per phase", amps);
                                 if let Err(e) = wallbox.set_current(amps) {
                                     log::error!("Failed to set current via MQTT: {e}");
                                 }
                             } else {
-                                log::warn!("Current value {}A per phase is out of EVCC2 range (0 or 6..=80A)", amps);
+                                log::warn!("Current value {:.1}A per phase is out of EVCC2 range (0 or 6..=80A)", amps);
                             }
                         }
                     }
                     "power" => {
                         if let Ok(watts) = payload.trim().parse::<u32>() {
                             let mut amps = abl_evcc_lib::protocol::power_watts_to_amperes(watts);
-                            if amps > 0 && amps > self.max_current {
+                            if amps > 0.0 && amps > self.max_current {
                                 log::warn!(
-                                    "Requested power {}W converts to {}A per phase, which exceeds MQTT max_current limit ({}A per phase). Capping to {}A.",
+                                    "Requested power {}W converts to {:.1}A per phase, which exceeds MQTT max_current limit ({:.1}A per phase). Capping to {:.1}A.",
                                     watts, amps, self.max_current, self.max_current
                                 );
                                 amps = self.max_current;
                             }
-                            if amps == 0 || (6..=80).contains(&amps) {
+                            if amps == 0.0 || (6.0..=80.0).contains(&amps) {
                                 log::info!(
-                                    "Applying MQTT power setting: {}W -> {}A per phase",
+                                    "Applying MQTT power setting: {}W -> {:.1}A per phase",
                                     watts,
                                     amps
                                 );
@@ -315,7 +315,7 @@ impl MqttPublisher {
                                     log::error!("Failed to set power via MQTT: {e}");
                                 }
                             } else {
-                                log::warn!("Power value {}W converted to {}A per phase, which is out of range (0 or 6..=80A)", watts, amps);
+                                log::warn!("Power value {}W converted to {:.1}A per phase, which is out of range (0 or 6..=80A)", watts, amps);
                             }
                         }
                     }
@@ -323,13 +323,13 @@ impl MqttPublisher {
                         let text = payload.trim().to_lowercase();
                         if text == "true" || text == "1" || text == "on" {
                             let enable_amps = self.max_current;
-                            log::info!("Enabling charging via MQTT at configured max_current: {}A per phase", enable_amps);
-                            if enable_amps == 0 || (6..=80).contains(&enable_amps) {
+                            log::info!("Enabling charging via MQTT at configured max_current: {:.1}A per phase", enable_amps);
+                            if enable_amps == 0.0 || (6.0..=80.0).contains(&enable_amps) {
                                 if let Err(e) = wallbox.enable(Some(enable_amps)) {
                                     log::error!("Failed to enable charging via MQTT: {e}");
                                 }
                             } else {
-                                log::warn!("Configured max_current ({}A) is below minimum 6A required to enable charging", enable_amps);
+                                log::warn!("Configured max_current ({:.1}A) is below minimum 6A required to enable charging", enable_amps);
                             }
                         } else if text == "false" || text == "0" || text == "off" {
                             log::info!("Disabling charging via MQTT");
@@ -401,7 +401,7 @@ impl MqttPublisher {
         pub_msg!("status_code", format!("{:#04X}", meas.status.raw_code()));
         pub_msg!("status_description", meas.status.description());
         pub_msg!("ev_connected", meas.ev_connected);
-        pub_msg!("configured_current", meas.configured_current_amperes);
+        pub_msg!("configured_current", format!("{:.1}", meas.configured_current_amperes));
         pub_msg!("enabled", meas.configured_current_amperes >= 6.0);
         pub_msg!("current_l1", meas.current_l1_amperes);
         pub_msg!("current_l2", meas.current_l2_amperes);

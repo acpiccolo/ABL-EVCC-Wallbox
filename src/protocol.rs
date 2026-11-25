@@ -799,24 +799,27 @@ impl std::fmt::Display for Evcc2Measurements {
     }
 }
 
-/// Convert target Amperes (6..=80 or 0 to disable) to EVCC2 duty cycle parameter.
-pub fn amperes_to_evcc2_duty_cycle(amperes: u16) -> u16 {
-    if amperes == 0 {
+/// Convert target Amperes (6.0..=80.0 or < 6.0 to disable) to EVCC2 duty cycle parameter.
+///
+/// Register 0x0014 expects duty cycle in 0.1% units (0..=1000).
+/// Formula: Duty Cycle (%) = Amps / 0.6  =>  0.1% units = (Amps / 0.06).round()
+pub fn amperes_to_evcc2_duty_cycle(amperes: f32) -> u16 {
+    if amperes < 6.0 {
         evcc2_registers::AMPS_DISABLED
     } else {
-        ((amperes as f32 / 0.06).round() as u16).clamp(80, 1000)
+        ((amperes / 0.06).round() as u16).clamp(100, 1000)
     }
 }
 
 /// Converts total 3-phase power in Watts (assuming 230V per phase, 3 phases)
-/// to charging current in Amperes per phase: `I = round(P / (3 * 230))`.
+/// to charging current in Amperes per phase: `I = P / (3 * 230)`.
 ///
-/// Returns 0 if watts == 0, or clamps between 6A and 80A.
-pub fn power_watts_to_amperes(watts: u32) -> u16 {
+/// Returns 0.0 if watts == 0, or clamps between 6.0A and 80.0A.
+pub fn power_watts_to_amperes(watts: u32) -> f32 {
     if watts == 0 {
-        0
+        0.0
     } else {
-        let amps = (watts as f64 / (3.0 * 230.0)).round() as u16;
-        amps.clamp(6, 80)
+        let amps = (watts as f32) / (3.0 * 230.0);
+        amps.clamp(6.0, 80.0)
     }
 }

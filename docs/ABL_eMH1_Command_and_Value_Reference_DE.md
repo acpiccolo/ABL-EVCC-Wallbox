@@ -78,12 +78,12 @@ Die ABL eMH1 liefert im Status-Byte (Register `0x0004` bzw. Byte 1 in `0x002E`) 
 ## 3. Berechnungsgrundlagen: Stromstärke vs. Leistung
 
 - **Ampere (`set-current`) ist immer der Strom pro Phase:**
-  Zulässiger Wertebereich: `0` (Ladestopp) oder `6` bis `80` Ampere.
+  Zulässiger Wertebereich: `0` (Ladestopp) oder `6.0` bis `80.0` Ampere. Dezimalwerte mit Sub-Ampere-Auflösung (z. B. `7.5` oder `6.4`) werden über das PWM-Tastverhältnis (0,1 %-Schritte, entspricht ~0,06 A theoretische Auflösung) präzise unterstützt.
 - **Watt (`set-power`) ist immer die Gesamtleistung für 3 Phasen (bei $3 \times 230\,\text{V}$):**
-  $$\text{Ampere pro Phase} = \text{round}\left(\frac{\text{Leistung (W)}}{3 \times 230\,\text{V}}\right)$$
-  - `11000 W` $\rightarrow$ $11000 / 690 = 15{,}94 \approx \mathbf{16\,\text{A}}$ pro Phase (entspricht $11.040\,\text{W}$)
-  - `22000 W` $\rightarrow$ $22000 / 690 = 31{,}88 \approx \mathbf{32\,\text{A}}$ pro Phase (entspricht $22.080\,\text{W}$)
-  - `0 W` $\rightarrow$ $\mathbf{0\,\text{A}}$ (Laden stoppen)
+  $$\text{Ampere pro Phase} = \frac{\text{Leistung (W)}}{3 \times 230\,\text{V}}$$
+  - `11000 W` $\rightarrow$ $11000 / 690 = 15{,}94\,\text{A}$ pro Phase (entspricht $\approx 11.000\,\text{W}$)
+  - `22000 W` $\rightarrow$ $22000 / 690 = 31{,}88\,\text{A}$ pro Phase (entspricht $\approx 22.000\,\text{W}$)
+  - `0 W` $\rightarrow$ $\mathbf{0{,}0\,\text{A}}$ (Laden stoppen)
 
 ---
 
@@ -139,7 +139,7 @@ Liest das aktuell vorgegebene Stromlimit aus Register `0x0014`.
 Setzt das Stromlimit pro Phase in Register `0x0014`.
 
 - **Argumente:**
-  - `<AMPERES>`: Integer (`0` oder `6`..`80`). Stromstärke in Ampere pro Phase.
+  - `<AMPERES>`: Float (`0` oder `6.0`..`80.0`). Stromstärke in Ampere pro Phase (z. B. `16` oder `7.5`).
   - `-f, --force`: Überspringt die Bestätigungsabfrage beim Setzen von `0A`.
 - **Konsolen-Ausgabe:**
   ```text
@@ -293,7 +293,7 @@ Liest die Übertragungsparameter der seriellen Schnittstelle aus Register `0x000
 Erteilt die Ladefreigabe. Schreibt das entsprechende Stromlimit in Register `0x0014`.
 
 - **Optionen:**
-  - `[AMPERES]`: Stromstärke pro Phase (Standard: `16`).
+  - `[AMPERES]`: Stromstärke pro Phase (Standard: `16`, unterstützt Dezimalwerte wie `6.4`).
   - `--power <WATTS>`: Dreiphasige Gesamtleistung (z. B. `11000`), die in Ampere umgerechnet wird.
 
 ---

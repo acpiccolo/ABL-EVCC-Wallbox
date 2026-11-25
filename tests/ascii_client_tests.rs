@@ -154,4 +154,68 @@ mod ascii_client_mock_tests {
         let fw = client.read_firmware().unwrap();
         assert_eq!(fw.firmware_revision(), "1.1");
     }
+
+    #[test]
+    fn test_ascii_client_set_current_and_set_power() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+
+        thread::spawn(move || {
+            let (mut socket, _) = listener.accept().unwrap();
+            let mut reader = BufReader::new(socket.try_clone().unwrap());
+
+            // 1. set_current(7.5) -> duty cycle 125 (0x007D)
+            let mut line = String::new();
+            reader.read_line(&mut line).unwrap();
+            assert!(line.contains("01100014000102007D"));
+            socket.write_all(b">011000140001DA\r\n").unwrap();
+            socket.flush().unwrap();
+
+            // 2. set_power(11000) -> 11000 / 690 = 15.942A -> duty cycle 266 (0x010A)
+            line.clear();
+            reader.read_line(&mut line).unwrap();
+            assert!(line.contains("01100014000102010A"));
+            socket.write_all(b">011000140001DA\r\n").unwrap();
+            socket.flush().unwrap();
+
+            // 3. enable(Some(6.4)) -> duty cycle 107 (0x006B)
+            line.clear();
+            reader.read_line(&mut line).unwrap();
+            assert!(line.contains("01100014000102006B"));
+            socket.write_all(b">011000140001DA\r\n").unwrap();
+            socket.flush().unwrap();
+
+            // 4. disable() -> duty cycle 1000 (0x03E8)
+            line.clear();
+            reader.read_line(&mut line).unwrap();
+            assert!(line.contains("0110001400010203E8"));
+            socket.write_all(b">011000140001DA\r\n").unwrap();
+            socket.flush().unwrap();
+
+            // 5. read_configured_current() -> query REG 0x0014
+            line.clear();
+            reader.read_line(&mut line).unwrap();
+            assert!(line.contains("010300140001"));
+            // Return 125 (0x007D = 7.5A): >010302007D7D\r\n
+            socket.write_all(b">010302007D7D\r\n").unwrap();
+            socket.flush().unwrap();
+        });
+
+        let mut client = AsciiClient::connect_tcp(
+            &format!("127.0.0.1:{}", port),
+            1,
+            Duration::from_secs(2),
+            Duration::from_millis(10),
+        )
+        .unwrap();
+
+        client.set_current(7.5).unwrap();
+        client.set_power(11000).unwrap();
+        client.enable(Some(6.4)).unwrap();
+        client.disable().unwrap();
+
+        let (amps, duty) = client.read_configured_current().unwrap();
+        assert_eq!(duty, 125);
+        assert_eq!(amps, 7.5);
+    }
 }

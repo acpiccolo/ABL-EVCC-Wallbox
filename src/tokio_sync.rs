@@ -3,7 +3,7 @@
 //! Provides the Modbus ASCII client [`AsciiClient`] and stateless helper struct [`Evcc2`].
 
 use crate::protocol::{
-    amperes_to_evcc2_duty_cycle, decode_ascii_frame, encode_ascii_frame, evcc2_registers,
+    amperes_to_evcc2_duty_cycle, decode_ascii_frame, encode_ascii_frame, evcc2_registers, power_watts_to_amperes,
     Evcc2Firmware, Evcc2Measurements, Evcc2ModbusSettings, Evcc2Status, Evcc2SystemFlags,
 };
 use anyhow::{bail, Context, Result};
@@ -352,23 +352,29 @@ impl AsciiClient {
         Ok((amps, duty))
     }
 
-    /// Set charging current limit in Amperes per phase (6..=80A or 0 to stop/disable).
-    pub fn set_current(&mut self, amperes: u16) -> Result<()> {
+    /// Set charging current limit in Amperes per phase (6.0..=80.0A or 0.0 to stop/disable).
+    pub fn set_current(&mut self, amperes: f32) -> Result<()> {
         let duty = amperes_to_evcc2_duty_cycle(amperes);
-        trace!("Setting charging current {amperes}A per phase -> duty cycle code {duty}");
+        trace!("Setting charging current {amperes:.1}A per phase -> duty cycle code {duty}");
         self.write_multiple_registers(evcc2_registers::REG_AMPS_CONFIG, &[duty])
-            .with_context(|| format!("Failed to set charging current to {amperes}A"))
+            .with_context(|| format!("Failed to set charging current to {amperes:.1}A"))
     }
 
-    /// Enable charging (resumes charging at specified Amperes, or 16A default).
-    pub fn enable(&mut self, amperes: Option<u16>) -> Result<()> {
-        let amps = amperes.unwrap_or(16);
+    /// Set charging power in Watts total for 3 phases (converts to Amperes per phase at 3x230V).
+    pub fn set_power(&mut self, watts: u32) -> Result<()> {
+        let amps = power_watts_to_amperes(watts);
+        self.set_current(amps)
+    }
+
+    /// Enable charging (resumes charging at specified Amperes, or 16.0A default).
+    pub fn enable(&mut self, amperes: Option<f32>) -> Result<()> {
+        let amps = amperes.unwrap_or(16.0);
         self.set_current(amps)
     }
 
     /// Disable charging (halts charging / sets duty cycle to disabled 0x03E8).
     pub fn disable(&mut self) -> Result<()> {
-        self.set_current(0)
+        self.set_current(0.0)
     }
 
     /// Read Modbus communication settings (Register 0x0003, 1 word).
